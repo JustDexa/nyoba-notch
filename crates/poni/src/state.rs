@@ -147,6 +147,8 @@ pub enum InlineAction {
     ShowAmount,
     /// Stop the adzan (Prayer times).
     StopAdzan,
+    /// Log a glass straight from the drink nudge, without opening the page.
+    LogDrink,
     /// Put the notice away now (a new version's: the menu and Settings
     /// keep offering it).
     Hide,

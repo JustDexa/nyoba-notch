@@ -15,7 +15,7 @@ use crate::commands::Command;
 use crate::gfx::{ts, TextStyle, Weight};
 use crate::icons::Icon;
 use crate::pages::PageKind;
-use crate::state::{AppState, Notice, NoticeAction};
+use crate::state::{AppState, InlineAction, Notice, NoticeAction};
 use crate::ui::{wid, PillStyle, Ui, PILL_GAP, PILL_SMALL};
 use poni_core::geom::{palette, Color, Point, Rect};
 use poni_core::water::{self, WaterSettings};
@@ -138,7 +138,7 @@ fn draw_log_buttons(ui: &mut Ui, st: &mut AppState, r: Rect) {
         let style = if i == 0 { PillStyle::Primary(WATER) } else { PillStyle::UtilityAccent(WATER) };
         if ui.pill(wid_log(i), Rect::new(x, r.y, w, r.h), label, None, style).clicked {
             let ml = if i == 0 { cfg.glass_ml } else { cfg.big_ml() };
-            log_drink(st, ml);
+            let _ = log_drink(st, ml);
         }
         x += w + PILL_GAP;
     }
@@ -165,7 +165,9 @@ fn wid_log(i: usize) -> u64 {
 }
 
 /// Log `ml` now: the day's total, the goal's one notice, and a saved file.
-fn log_drink(st: &mut AppState, ml: u32) {
+/// Returns whether it put up the goal's notice, which the island's own
+/// "Drank" pill must not then overwrite with its check mark.
+pub(crate) fn log_drink(st: &mut AppState, ml: u32) -> bool {
     let day = st.day_key();
     let before = st.store.water.total(&day);
     let after = st.store.water.add(&day, st.unix, ml);
@@ -178,7 +180,9 @@ fn log_drink(st: &mut AppState, ml: u32) {
     if water::goal_just_reached(before, after, goal) {
         st.chime();
         st.notify(Icon::Drop, WATER, format!("{} today", water::fmt_ml(after)), "Daily drink goal reached", 6.0, Some(NoticeAction::OpenPage(PageKind::Water)));
+        return true;
     }
+    false
 }
 
 /// "Next reminder 15:40", or why there is none.
@@ -355,7 +359,9 @@ pub fn nudge_notice(cfg: &WaterSettings, total_ml: u32, until: f64) -> Notice {
         subtitle,
         until,
         action: Some(NoticeAction::OpenPage(PageKind::Water)),
-        inline: None,
+        // One click logs a glass right here; the notice itself still opens
+        // the page, for a different amount or to take one back.
+        inline: Some(InlineAction::LogDrink),
         reveal: None,
     }
 }

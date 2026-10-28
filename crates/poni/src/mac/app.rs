@@ -2366,9 +2366,16 @@ impl App {
             }
             return;
         }
+        let mut own_notice = false;
         match a {
             InlineAction::StartFocus => st.pomodoro.start(st.now),
+            // A glass logged from the island itself: the page need not open.
+            // Reaching the goal puts up its own notice, which stays.
+            InlineAction::LogDrink => own_notice = pages::water::log_drink(st, st.settings.water.glass_ml),
             InlineAction::ShowAmount | InlineAction::StopAdzan | InlineAction::Hide | InlineAction::WhatsNew => {}
+        }
+        if own_notice {
+            return;
         }
         let until = st.now + INLINE_DONE_S;
         if let Some(n) = st.notice.as_mut() {
