@@ -39,7 +39,7 @@ use windows::core::{w, Result};
 use windows::Foundation::Numerics::Matrix3x2;
 use windows::Win32::Foundation::*;
 use windows::Win32::System::Ole::{OleInitialize, OleUninitialize};
-use windows::Win32::System::Threading::CreateMutexW;
+use windows::Win32::System::Threading::{CreateMutexW, GetCurrentProcess, SetProcessWorkingSetSize};
 use windows::Win32::UI::HiDpi::{SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -2359,6 +2359,9 @@ impl App {
                 }
                 self.hovering = false;
                 self.input.mouse = None;
+                // The island draws nothing from here until the game leaves,
+                // so hand its pages back to Windows for the game to use.
+                release_memory_to_windows();
             }
             let why = if self.fullscreen_on && !self.st.settings.hide_in_fullscreen && self.st.game.active { " (show over games)" } else { "" };
             pinfo!("fullscreen app {}: island {}{why}", if self.fullscreen_on { "in front" } else { "gone" }, if hide { "hidden" } else { "shown" });
@@ -4388,6 +4391,29 @@ impl App {
 }
 
 /// Oyen's orange in his theme, Windows' accent colour otherwise.
+/// Hand the island's pages back to Windows, for a full-screen game to use.
+///
+/// A game in front hides the island: it draws nothing, its frame clock is
+/// parked and Glass stops copying the screen, so from then until the game
+/// leaves nothing here touches those pages. `SetProcessWorkingSetSize` with
+/// -1, -1 asks Windows to trim the working set, which lets it give the
+/// memory to whatever is actually running. It is a request, not a promise:
+/// Windows decides, and the pages come back by themselves, a fault at a
+/// time, when the island draws again.
+///
+/// This costs one call at the moment a game takes the screen. The island is
+/// a touch slower on its first frame afterwards, which nobody sees: it is
+/// coming back from hidden anyway.
+fn release_memory_to_windows() {
+    unsafe {
+        // -1 for both: "trim", not a limit that would stay (Win32's own
+        // convention for this call).
+        if let Err(e) = SetProcessWorkingSetSize(GetCurrentProcess(), usize::MAX, usize::MAX) {
+            pwarn!("memory: the working set wasn't trimmed for the game ({e})");
+        }
+    }
+}
+
 fn theme_accent(theme: Theme) -> Color {
     if oyen::on(theme) {
         oyen::ORANGE
