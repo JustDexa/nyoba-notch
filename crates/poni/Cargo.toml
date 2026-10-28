@@ -1,0 +1,130 @@
+[package]
+name = "poni"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Poni - a living notch (Dynamic Island) for Windows 10/11"
+build = "build.rs"
+
+[[bin]]
+name = "poni"
+path = "src/main.rs"
+
+[dependencies]
+# Oyenza Studio's own Japanese reading dictionary (3.8 MB) is not built into
+# poni.exe: Windows downloads it as the Japanese readings add-on
+# (poni_core::addons::JAPANESE_READINGS) for the people who want it.
+poni-core = { path = "../poni-core" }
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-core = "=0.58.0"
+
+[target.'cfg(windows)'.dependencies.windows]
+version = "=0.58.0"
+features = [
+    "implement",
+    "ApplicationModel",
+    "Devices_Bluetooth_GenericAttributeProfile",
+    "Media_Core",
+    "Media_Playback",
+    "Devices_Geolocation",
+    "Storage_FileProperties",
+    "System",
+    "Win32_Storage_EnhancedStorage",
+    "Win32_System_Console",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_UI_Controls",
+    "Foundation",
+    "Foundation_Collections",
+    "Foundation_Numerics",
+    "Globalization",
+    "Media",
+    "Media_Control",
+    "Storage",
+    "Storage_Streams",
+    "Web_Http",
+    "Web_Http_Headers",
+    "Devices_Enumeration",
+    "Devices_Bluetooth",
+    "UI",
+    "UI_ViewManagement",
+    "Win32_Foundation",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_Devices_Display",
+    "Win32_Devices_Properties",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_DirectComposition",
+    "Win32_Graphics_DirectWrite",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Imaging",
+    "Win32_Media",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_NetworkManagement_NetManagement",
+    "Win32_Networking_WinSock",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Security_Cryptography",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_DataExchange",
+    "Win32_System_Diagnostics_Etw",
+    "Win32_System_LibraryLoader",
+    "Win32_System_IO",
+    "Win32_System_Memory",
+    "Win32_System_Ole",
+    "Win32_System_Performance",
+    "Win32_System_Power",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Registry",
+    "Win32_System_RemoteDesktop",
+    "Win32_System_SystemInformation",
+    "Win32_System_SystemServices",
+    "Win32_System_Threading",
+    "Win32_System_Time",
+    "Win32_System_Variant",
+    "Win32_System_WinRT",
+    "Win32_System_WindowsProgramming",
+    "Win32_UI_Accessibility",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_UI_WindowsAndMessaging",
+    "Wdk_Graphics_Direct3D",
+    "Wdk_System_SystemInformation",
+]
+
+# The Mac app (slice 1: island, drawing, clock, timer, menu bar icon).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "=0.6.5"
+block2 = "=0.6.2"
+dispatch2 = "=0.3.1"
+objc2-foundation = "=0.3.2"
+objc2-app-kit = "=0.3.2"
+objc2-core-foundation = "=0.3.2"
+objc2-core-graphics = "=0.3.2"
+# Prayer times: where the Mac is (Location Services), only when asked.
+objc2-core-location = { version = "=0.3.2", default-features = false, features = ["std", "CLError", "CLLocation", "CLLocationManager", "CLLocationManagerDelegate"] }
+objc2-core-text = "=0.3.2"
+objc2-quartz-core = "=0.3.2"
+# The update file's signature (services/update.rs): the P-256 code phone
+# drop's WebRTC already builds into the Mac app (same version, nothing new).
+p256 = { version = "=0.13.2", default-features = false, features = ["ecdsa"] }
+
+[build-dependencies]
+embed-resource = "2.5"

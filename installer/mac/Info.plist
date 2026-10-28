@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Oyenza Studio.app's Info.plist. tools/make_mac_app.sh fills in @VERSION@ from Cargo.toml. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Oyenza Studio</string>
+	<key>CFBundleName</key>
+	<string>Oyenza Studio</string>
+	<key>CFBundleExecutable</key>
+	<string>poni</string>
+	<key>CFBundleIconFile</key>
+	<string>OyenzaStudio</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.oyenza.poni</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@VERSION@</string>
+	<key>CFBundleVersion</key>
+	<string>@VERSION@</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<!-- The display link and the notch APIs the island uses need macOS 14 Sonoma. -->
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<!-- A menu bar app: no Dock icon, no menu bar of its own. -->
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<!-- Shown when Oyenza Studio first asks Music or Spotify what's playing. -->
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Oyenza Studio shows what Music and Spotify are playing, with its lyrics, and its buttons play, pause and skip.</string>
+	<!-- Shown when Prayer times first asks where the Mac is (only while it follows the location). -->
+	<key>NSLocationUsageDescription</key>
+	<string>Prayer times uses your location to pick the nearest kab/kota. Your location stays on this Mac.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Prayer times uses your location to pick the nearest kab/kota. Your location stays on this Mac.</string>
+</dict>
+</plist>
