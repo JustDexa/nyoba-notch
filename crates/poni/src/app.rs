@@ -3677,10 +3677,7 @@ impl App {
         let day = self.st.local.day_key();
         let total = self.st.store.water.total(&day);
         let last = self.st.store.water.last_minute_of(&day, self.st.day_start_unix());
-        let Some(due_at) = poni_core::water::next_due(&cfg, last, total) else { return };
-        if minute < due_at {
-            return;
-        }
+        let Some(due_at) = poni_core::water::due_now(&cfg, last, total, minute) else { return };
         // One nudge for one moment, however many ticks pass before a drink
         // is logged (logging one clears this, so the next moment nudges).
         if self.st.water_reminded.as_ref().is_some_and(|(d, m)| *d == day && *m == due_at) {

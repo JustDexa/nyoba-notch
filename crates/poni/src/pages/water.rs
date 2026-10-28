@@ -46,7 +46,8 @@ pub fn height(_st: &AppState) -> f32 {
 /// rests it while nobody is at the PC).
 pub fn next_wake(st: &AppState) -> Option<f64> {
     let cfg = &st.settings.water;
-    let due = water::next_due(cfg, last_minute(st), st.store.water.total(&st.day_key()));
+    let now = st.local.minute_of_day();
+    let due = water::next_due(cfg, last_minute(st), st.store.water.total(&st.day_key()), now);
     due.map(|_| (st.now / 60.0).floor() * 60.0 + 60.0)
 }
 
@@ -189,7 +190,7 @@ fn draw_next_line(ui: &mut Ui, st: &AppState, total: u32, r: Rect) {
     } else if total >= cfg.goal_ml {
         "Done for today".to_string()
     } else {
-        match water::next_due(cfg, last_minute(st), total) {
+        match water::next_due(cfg, last_minute(st), total, st.local.minute_of_day()) {
             Some(m) => format!("Next reminder {}", water::fmt_minute(m, st.settings.use_24h)),
             // Nothing left inside the reminder's hours.
             None => format!("Reminders until {}", water::fmt_minute(cfg.to_min, st.settings.use_24h)),

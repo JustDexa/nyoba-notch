@@ -184,18 +184,53 @@ pub fn due(due_at: u32, now: u32) -> Due {
     }
 }
 
-/// The minute the next nudge is due, or `None` while the reminder has
-/// nothing to say today (switched off, or the day's goal is already met).
+/// Where today's nudges are counted from: the last drink, or the start of
+/// the reminder's hours, whichever is later. Logging a drink moves the
+/// anchor, so the next nudge is a full interval away and the page's buttons
+/// are the snooze.
+fn anchor(cfg: &WaterSettings, last_drink_min: Option<u32>) -> u32 {
+    last_drink_min.map_or(cfg.from_min, |m| m.max(cfg.from_min))
+}
+
+/// The reminder has nothing to say today: switched off, or the goal is met.
+fn quiet(cfg: &WaterSettings, total_ml: u32) -> bool {
+    !cfg.remind || total_ml >= cfg.goal_ml
+}
+
+/// The nudge that is due at `now`: the last interval boundary at or before
+/// it, counted from [`anchor`]. `None` while none has come round yet, or
+/// once the boundary has run past the reminder's hours.
 ///
-/// The clock starts at the last drink, so logging one puts the next nudge a
-/// full interval away: the page's buttons are the snooze. Before the first
-/// drink of the day it starts at the beginning of the reminder's hours.
-pub fn next_due(cfg: &WaterSettings, last_drink_min: Option<u32>, total_ml: u32) -> Option<u32> {
-    if !cfg.remind || total_ml >= cfg.goal_ml {
+/// The boundaries move with the clock, so a PC that slept through one wakes
+/// to the current boundary rather than a stale one — and the reminder can
+/// never be stuck on a moment that has long passed.
+pub fn due_now(cfg: &WaterSettings, last_drink_min: Option<u32>, total_ml: u32, now_min: u32) -> Option<u32> {
+    if quiet(cfg, total_ml) {
         return None;
     }
-    let from = last_drink_min.map_or(cfg.from_min, |m| m.max(cfg.from_min));
-    let at = from.saturating_add(cfg.every_min.max(1));
+    let every = cfg.every_min.max(1);
+    let a = anchor(cfg, last_drink_min);
+    // Nothing is due until a whole interval has passed since the anchor.
+    let since = now_min.checked_sub(a).filter(|s| *s >= every)?;
+    let at = a + (since / every) * every;
+    (at < cfg.to_min).then_some(at)
+}
+
+/// The minute the next nudge falls on, for the page's line: the first
+/// boundary after `now`. `None` when the reminder is quiet or no boundary
+/// is left inside its hours today.
+pub fn next_due(cfg: &WaterSettings, last_drink_min: Option<u32>, total_ml: u32, now_min: u32) -> Option<u32> {
+    if quiet(cfg, total_ml) {
+        return None;
+    }
+    let every = cfg.every_min.max(1);
+    let a = anchor(cfg, last_drink_min);
+    let at = match now_min.checked_sub(a) {
+        // Still before the anchor (the hours haven't opened yet): the first
+        // nudge is one interval into them.
+        None => a.saturating_add(every),
+        Some(since) => a.saturating_add((since / every + 1).saturating_mul(every)),
+    };
     (at < cfg.to_min).then_some(at)
 }
 
@@ -329,19 +364,63 @@ mod tests {
     #[test]
     fn the_next_nudge_is_an_interval_after_the_last_drink() {
         let cfg = WaterSettings::default(); // 08:00-22:00, every 60, goal 2000
-        // Nothing drunk yet: an interval after the hours start.
-        assert_eq!(next_due(&cfg, None, 0), Some(9 * 60));
+        // Nothing drunk yet, asked at 08:10: the first nudge is 09:00.
+        assert_eq!(next_due(&cfg, None, 0, 8 * 60 + 10), Some(9 * 60));
         // A drink at 10:20 pushes it to 11:20.
-        assert_eq!(next_due(&cfg, Some(10 * 60 + 20), 250), Some(11 * 60 + 20));
+        assert_eq!(next_due(&cfg, Some(10 * 60 + 20), 250, 10 * 60 + 25), Some(11 * 60 + 20));
         // A drink before the hours start still counts from the start.
-        assert_eq!(next_due(&cfg, Some(6 * 60), 250), Some(9 * 60));
+        assert_eq!(next_due(&cfg, Some(6 * 60), 250, 8 * 60 + 5), Some(9 * 60));
+        // Asked before the hours open, the first nudge is still 09:00.
+        assert_eq!(next_due(&cfg, None, 0, 6 * 60), Some(9 * 60));
         // Past the day's goal there is nothing to say.
-        assert_eq!(next_due(&cfg, Some(10 * 60), 2000), None);
+        assert_eq!(next_due(&cfg, Some(10 * 60), 2000, 11 * 60), None);
         // Nor with the reminder switched off.
         let off = WaterSettings { remind: false, ..cfg };
-        assert_eq!(next_due(&off, None, 0), None);
+        assert_eq!(next_due(&off, None, 0, 9 * 60), None);
         // A drink late in the day leaves no nudge before the hours end.
-        assert_eq!(next_due(&cfg, Some(21 * 60 + 30), 250), None);
+        assert_eq!(next_due(&cfg, Some(21 * 60 + 30), 250, 21 * 60 + 35), None);
+    }
+
+    #[test]
+    fn the_next_nudge_is_always_ahead_of_the_clock() {
+        // The bug this pins: with nothing drunk all day, the line used to
+        // name the hours' start plus one interval (08:30) however late it
+        // was, so the page showed a time that had long passed.
+        let cfg = WaterSettings { every_min: 30, goal_ml: 3000, ..WaterSettings::default() };
+        assert_eq!(next_due(&cfg, None, 0, 16 * 60 + 32), Some(17 * 60));
+        assert_eq!(next_due(&cfg, None, 0, 17 * 60), Some(17 * 60 + 30));
+        assert_eq!(next_due(&cfg, None, 0, 17 * 60 + 1), Some(17 * 60 + 30));
+        // Never behind the clock, at any minute of the reminder's hours.
+        for now in cfg.from_min..cfg.to_min {
+            if let Some(at) = next_due(&cfg, None, 0, now) {
+                assert!(at > now, "next nudge {at} is not after {now}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_due_nudge_follows_the_clock_instead_of_sticking() {
+        let cfg = WaterSettings { every_min: 30, goal_ml: 3000, ..WaterSettings::default() };
+        // Nothing is due before the first interval is up.
+        assert_eq!(due_now(&cfg, None, 0, 8 * 60), None);
+        assert_eq!(due_now(&cfg, None, 0, 8 * 60 + 29), None);
+        assert_eq!(due_now(&cfg, None, 0, 8 * 60 + 30), Some(8 * 60 + 30));
+        // The second bug this pins: late in the day with nothing drunk, the
+        // moment due is the one just gone, not the morning's — so it arrives
+        // with a tone instead of being dropped as half a day late.
+        assert_eq!(due_now(&cfg, None, 0, 16 * 60 + 32), Some(16 * 60 + 30));
+        assert_eq!(due(16 * 60 + 30, 16 * 60 + 32), Due::Ring);
+        // A drink re-anchors the boundaries to it.
+        assert_eq!(due_now(&cfg, Some(16 * 60 + 35), 250, 16 * 60 + 40), None);
+        assert_eq!(due_now(&cfg, Some(16 * 60 + 35), 250, 17 * 60 + 5), Some(17 * 60 + 5));
+        // Whatever the minute, what is due is never more than one interval old.
+        for now in cfg.from_min..cfg.to_min {
+            if let Some(at) = due_now(&cfg, None, 0, now) {
+                assert!(at <= now && now - at < cfg.every_min, "{at} is stale at {now}");
+            }
+        }
+        // Nothing left once the hours are over.
+        assert_eq!(due_now(&cfg, None, 0, 22 * 60 + 10), None);
     }
 
     #[test]
