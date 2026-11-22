@@ -32,4 +32,4 @@
 
 </details>
 
-<sub>Updated 21 Nov 2026, 00:57 UTC by [Download stats](https://github.com/JustDexa/nyoba-notch/actions/workflows/metrics.yml), every hour · Data: [downloads](data/downloads.csv), [CI downloads](data/ci-downloads.csv), [stars](data/repo.csv), [summary.json](summary.json)</sub>
+<sub>Updated 22 Nov 2026, 02:40 UTC by [Download stats](https://github.com/JustDexa/nyoba-notch/actions/workflows/metrics.yml), every hour · Data: [downloads](data/downloads.csv), [CI downloads](data/ci-downloads.csv), [stars](data/repo.csv), [summary.json](summary.json)</sub>
